@@ -13,6 +13,11 @@
 #
 set -e
 
+RUN_DIR=/var/run
+if [ -r /etc/usbmount/usbmount.conf ]; then
+    . /etc/usbmount/usbmount.conf
+fi
+
 # Replace spaces with underscores, remove special characters in vendor
 # and model name.
 UM_VENDOR=`echo "$UM_VENDOR" | sed 's/ /_/g; s/[^0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-]//g'`
@@ -35,6 +40,6 @@ if test -n "$partition"; then
 fi
 
 # If the symlink does not yet exist, create it.
-test -e "/var/run/usbmount/$name" || ln -sf "$UM_MOUNTPOINT" "/var/run/usbmount/$name"
+test -e "${RUN_DIR}/usbmount/$name" || ln -sf "$UM_MOUNTPOINT" "${RUN_DIR}/usbmount/$name"
 
 exit 0

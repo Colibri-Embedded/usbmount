@@ -13,9 +13,14 @@
 #
 set -e
 
-ls /var/run/usbmount | while read name; do
-    if test "`readlink \"/var/run/usbmount/$name\" || :`" = "$UM_MOUNTPOINT"; then
-	rm -f "/var/run/usbmount/$name"
+RUN_DIR=/var/run
+if [ -r /etc/usbmount/usbmount.conf ]; then
+    . /etc/usbmount/usbmount.conf
+fi
+
+ls $RUN_DIR/usbmount | while read name; do
+    if test "`readlink \"${RUN_DIR}/usbmount/$name\" || :`" = "$UM_MOUNTPOINT"; then
+	rm -f "${RUN_DIR}/usbmount/$name"
 	break
     fi
 done
