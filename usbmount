@@ -62,11 +62,6 @@ if [ "${ENABLED:-1}" -eq 0 ]; then
     exit 0
 fi
 
-if [ ! -x /sbin/blkid ]; then
-    log err "cannot execute /sbin/blkid"
-    exit 1
-fi
-
 # Per Policy 9.3.2, directories under ${RUN_DIR} have to be created
 # after every reboot.
 if [ ! -e ${RUN_DIR}/usbmount ]; then
@@ -92,15 +87,10 @@ if [ "$1" = add ]; then
     # Grab device information from device and "divide it"
     #   FIXME: improvement: implement mounting by label (notice that labels
     #   can contain spaces, which makes things a little bit less comfortable).
-    DEVINFO=$(/sbin/blkid -p $DEVNAME)
-    FSTYPE=$(echo "$DEVINFO" | sed 's/.*[[:blank:]]TYPE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
-    UUID=$(echo "$DEVINFO"   | sed 's/.*[[:blank:]]UUID="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
-    USAGE=$(echo "$DEVINFO"  | sed 's/.*[[:blank:]]USAGE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
-    LABEL=$(echo "$DEVINFO"  | sed 's/.*[[:blank:]]LABEL="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
-    
-    LABEL_SAFE=$(echo $LABEL | sed 's/ /_/g')
 
-    if ! echo $USAGE | egrep -q "(filesystem|disklabel)"; then
+    LABEL_SAFE=$(echo $ID_FS_LABEL | sed 's/ /_/g')
+
+    if ! echo $ID_FS_USAGE | egrep -q "(filesystem|disklabel)"; then
 	log info "$DEVNAME does not contain a filesystem or disklabel"
 	exit 1
     fi
@@ -110,14 +100,14 @@ if [ "$1" = add ]; then
 	log info "executing command: mount $DEVNAME"
 	mount $DEVNAME || log err "mount by DEVNAME with $DEVNAME wasn't successful; return code $?"
 
-    elif grep -q "^[[:blank:]]*UUID=$UUID" /etc/fstab; then
-        log info "executing command: mount -U $UUID"
-	mount -U $UUID || log err "mount by UUID with $UUID wasn't successful; return code $?"
+    elif grep -q "^[[:blank:]]*UUID=$ID_FS_UUID" /etc/fstab; then
+        log info "executing command: mount -U $ID_FS_UUID"
+	mount -U $ID_FS_UUID || log err "mount by UUID with $ID_FS_UUID wasn't successful; return code $?"
 
     else
-	log debug "$DEVNAME contains filesystem type $FSTYPE"
+	log debug "$DEVNAME contains filesystem type $ID_FS_TYPE"
 
-	fstype=$FSTYPE
+	fstype=$ID_FS_TYPE
 	# Test if the filesystem type is in the list of filesystem
 	# types to mount.
 	if in_list "$fstype" "$FILESYSTEMS"; then
@@ -178,11 +168,13 @@ if [ "$1" = add ]; then
 
 		# Run hook scripts; ignore errors.
 		export UM_DEVICE="$DEVNAME"
+		export UM_UUID="$ID_FS_UUID"
 		export UM_MOUNTPOINT="$mountpoint"
 		export UM_FILESYSTEM="$fstype"
 		export UM_MOUNTOPTIONS="$options"
 		export UM_VENDOR="$vendor"
 		export UM_MODEL="$model"
+		export UM_LABEL="$ID_FS_LABEL"
 		log info "executing command: run-parts /etc/usbmount/mount.d"
 		run-parts /etc/usbmount/mount.d || :
 	    else
